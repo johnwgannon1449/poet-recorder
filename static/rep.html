@@ -1,1 +1,270 @@
-<!doctype html><title>POET Recorder</title>placeholder
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>POET Recorder</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: #f4f5f7; color: #111; font: 17px/1.35 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+  [hidden] { display: none !important; }
+  button { font: inherit; border: 0; border-radius: 12px; cursor: pointer; }
+  a { color: #1a5fb4; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 12px; }
+  /* name picker */
+  #pick h1 { font-size: 26px; margin: 28px 0 14px; }
+  #reps button { display: block; width: 100%; min-height: 72px; margin: 10px 0; font-size: 24px; font-weight: 600; background: #fff; border: 2px solid #cfd3da; }
+  /* rep page */
+  header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #ddd; padding: 10px 12px; z-index: 2; }
+  header .name { font-size: 20px; font-weight: 700; }
+  header .name a { font-size: 14px; font-weight: 400; margin-left: 8px; }
+  header .counts { color: #555; font-size: 15px; }
+  .note { padding: 8px 12px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+  #reminder { background: #fff6d6; border-bottom: 1px solid #f0d98a; }
+  #reminder button { margin-left: auto; background: none; font-size: 22px; padding: 0 6px; }
+  #banner { background: #e2eefc; border-bottom: 1px solid #b7cdf0; }
+  #offline { background: #fde2e2; border-bottom: 1px solid #f3b4b4; }
+  #micmsg { background: #fde2e2; }
+  main { padding: 10px 0 240px; }
+  .orderbar { display: flex; align-items: baseline; gap: 10px; margin: 6px 0; color: #555; font-size: 15px; }
+  .orderbar .no { font-weight: 600; }
+  .orderbar #partno { background: #e7e9ee; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
+  .orderbar #skiporder { margin-left: auto; font-size: 14px; }
+  #lines { list-style: none; margin: 0; padding: 0; }
+  #lines li { background: #fff; border: 2px solid #e1e4ea; border-radius: 12px; padding: 12px 14px; margin: 8px 0; font-size: 22px; line-height: 1.3; }
+  #lines li.active { border-color: #1a5fb4; background: #eef4fd; }
+  #lines li.skipped .text { color: #999; text-decoration: line-through; }
+  #lines li .qty { font-weight: 700; margin-right: 6px; }
+  #lines li .sku { display: none; font-size: 14px; color: #777; margin-top: 2px; }
+  body.showsku #lines li .sku { display: block; }
+  .chips { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 14px; background: #e6f4e6; color: #1b5e20; border-radius: 999px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.saving { background: #eee; color: #555; }
+  .chip.failed { background: #fde2e2; color: #b00020; }
+  .chip.skip { background: #eee; color: #777; }
+  .chip .trash { background: none; padding: 0 2px; font-size: 16px; line-height: 1; color: #777; }
+  #done { display: flex; gap: 10px; margin: 14px 0; }
+  #done button { flex: 1; min-height: 56px; font-size: 18px; font-weight: 700; background: #fff; border: 2px solid #cfd3da; }
+  #done #nextorder { background: #1a5fb4; color: #fff; border-color: #1a5fb4; flex: 2; }
+  #empty { text-align: center; color: #555; padding: 40px 0; font-size: 20px; }
+  footer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid #ddd;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); z-index: 2; }
+  footer .row { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  #skipline { width: 110px; min-height: 84px; font-size: 14px; font-weight: 700; background: #e7e9ee; color: #333; }
+  #talk { flex: 1; min-height: 84px; font-size: 28px; font-weight: 800; letter-spacing: 1px; background: #1a5fb4; color: #fff;
+    touch-action: none; -webkit-user-select: none; user-select: none; }
+  #talk small { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; opacity: .85; }
+  #talk.rec { background: #d32f2f; }
+  #talk:disabled { background: #9aa4b2; }
+</style>
+</head>
+<body>
+<div id="pick" class="wrap" hidden>
+  <h1>Who are you?</h1>
+  <div id="reps"></div>
+</div>
+
+<div id="rep" hidden>
+  <header><div class="name"><span id="repname"></span><a id="notyou" href="/">not you?</a></div><div class="counts" id="counts"></div></header>
+  <div id="reminder" class="note"><span>Say it the way the customer asks for it.</span><button id="dismiss" aria-label="dismiss">×</button></div>
+  <div id="banner" class="note" hidden></div>
+  <div id="offline" class="note" hidden>Offline. Your last take is kept and will be sent when the connection is back.</div>
+  <div id="micmsg" class="note" hidden></div>
+  <main class="wrap">
+    <div class="orderbar"><span>Order</span><span class="no" id="orderno"></span><button id="partno">part #</button><a id="skiporder" href="#">skip order</a></div>
+    <ol id="lines"></ol>
+    <div id="empty" hidden>Nothing left in your queue. Nice work.</div>
+    <div id="done"><button id="back" hidden>BACK</button><button id="nextorder" hidden>NEXT ORDER ›</button></div>
+  </main>
+  <footer><div class="row">
+    <button id="skipline">SKIP<br>LINE</button>
+    <button id="talk">TALK<small>hold to talk · tap to lock</small></button>
+  </div></footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const slug = (location.pathname.match(/^\/r\/([^/]+)/) || [])[1];
+const S = { cur: null, active: null, stream: null, rec: null, chunks: [], recording: false, locked: false,
+            pressAt: 0, startAt: 0, timer: null, saving: null, failed: null, stopping: false, lastLine: null, lastOrder: null };
+
+// ---------- name picker ----------
+async function showPicker() {
+  const saved = localStorage.getItem('rep');
+  if (saved) { location.replace('/r/' + saved); return; }
+  $('pick').hidden = false;
+  const reps = await (await fetch('/api/reps')).json();
+  $('reps').innerHTML = reps.length ? '' : '<p>No reps yet. Run import_orders.py first.</p>';
+  for (const r of reps) {
+    const b = document.createElement('button'); b.textContent = r.name;
+    b.onclick = () => { localStorage.setItem('rep', r.slug); location.href = '/r/' + r.slug; };
+    $('reps').appendChild(b);
+  }
+}
+
+// ---------- rendering ----------
+function fmt(sec) { sec = Math.round(sec); return (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's'; }
+function qty(n) { return Number.isInteger(n) ? n : (+n).toFixed(2).replace(/\.?0+$/, ''); }
+
+function pickActive(order) {
+  if (S.active != null && order.lines.some(l => l.line_no === S.active)) return S.active;   // rep tapped a line
+  const free = order.lines.filter(l => !l.takes.length && !l.skipped);
+  const after = free.find(l => order.lines.indexOf(l) > order.lines.findIndex(x => x.line_no === S.lastLine));
+  return (after || free[0] || order.lines[0] || {}).line_no ?? null;
+}
+
+function render() {
+  const c = S.cur, o = c.order, k = c.counts;
+  $('repname').textContent = c.rep.name;
+  $('counts').textContent = `Orders ${k.orders_done} of ${k.assigned_orders} · Lines ${k.lines_recorded} · Skipped ${k.lines_skipped}`;
+  $('empty').hidden = !!o; $('lines').innerHTML = '';
+  $('talk').disabled = !o; $('skipline').disabled = !o;
+  $('back').hidden = !c.has_prev; $('nextorder').hidden = true; $('skiporder').hidden = !o;
+  let banner = '';
+  if (!o) { $('orderno').textContent = '—'; $('banner').hidden = true; return; }
+  if (S.lastOrder !== o.order_no) { S.lastLine = null; S.lastOrder = o.order_no; }
+  S.active = pickActive(o);
+  $('orderno').textContent = o.order_no;
+  if (o.section === 'pool') banner = 'Your own orders are done. This one is from the unassigned pool.';
+  if (o.section === 'others') banner = `Your own orders are done. This one is assigned to ${o.assigned_to}; a second voice still helps.`;
+  if ((o.completed || o.skipped) && !c.has_next) banner = 'All caught up. You can still add takes to this order.';
+  else if (o.skipped) banner = 'You skipped this order. Recording a take still counts.';
+  $('banner').textContent = banner; $('banner').hidden = !banner;
+  for (const l of o.lines) {
+    const li = document.createElement('li');
+    li.className = (l.line_no === S.active ? 'active ' : '') + (l.skipped ? 'skipped' : '');
+    li.innerHTML = `<div class="text"><span class="qty">${qty(l.qty)}${l.uom ? ' ' + l.uom : ''}</span> — ${esc(l.description)}</div>
+                    <div class="sku">part # ${esc(l.sku)}</div><div class="chips"></div>`;
+    const chips = li.querySelector('.chips');
+    for (const t of l.takes) {
+      const ch = document.createElement('span'); ch.className = 'chip';
+      ch.innerHTML = `✓ ${fmt(t.duration_s)} <button class="trash" title="delete take">🗑</button>`;
+      ch.querySelector('.trash').onclick = e => { e.stopPropagation(); deleteTake(t.id); };
+      chips.appendChild(ch);
+    }
+    if (S.saving && S.saving.line_no === l.line_no) chips.insertAdjacentHTML('beforeend', `<span class="chip saving">${fmt(S.saving.dur)} saving…</span>`);
+    if (S.failed && S.failed.line_no === l.line_no && S.failed.order_no === o.order_no) chips.insertAdjacentHTML('beforeend', '<span class="chip failed">not saved — hold again</span>');
+    if (l.skipped) chips.insertAdjacentHTML('beforeend', '<span class="chip skip">skipped</span>');
+    li.onclick = () => { S.active = l.line_no; render(); };
+    $('lines').appendChild(li);
+  }
+  $('nextorder').hidden = !(o.completed && c.has_next);
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
+
+// ---------- server ----------
+async function api(path, opts) {
+  try {
+    const r = await fetch(path, opts);
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 200));
+    setOffline(false);
+    return await r.json();
+  } catch (e) { if (!navigator.onLine || /Failed to fetch|Load failed/.test(e.message)) setOffline(true); throw e; }
+}
+async function load(path = `/api/r/${slug}/current`, opts) { S.cur = await api(path, opts); render(); }
+function setOffline(off) { $('offline').hidden = !off; }
+
+async function deleteTake(id) { await api('/api/take/' + id, { method: 'DELETE' }); await load(); }
+
+async function upload(blob, order_no, line_no, dur) {
+  const fd = new FormData();
+  fd.append('audio', blob, 'take.' + (blob.type.includes('mp4') ? 'm4a' : 'webm'));
+  fd.append('rep', slug); fd.append('order_no', order_no); fd.append('line_no', line_no); fd.append('duration_s', dur.toFixed(2));
+  S.saving = { line_no, dur }; render();
+  for (let i = 0; i < 3; i++) {
+    try { await api('/api/take', { method: 'POST', body: fd }); S.saving = null; S.failed = null; S.lastLine = line_no; S.active = null; await load(); return; }
+    catch (e) { await new Promise(r => setTimeout(r, 800 * (i + 1))); }
+  }
+  S.saving = null; S.failed = { blob, order_no, line_no, dur }; render();
+}
+window.addEventListener('online', () => { setOffline(false); if (S.failed) { const f = S.failed; upload(f.blob, f.order_no, f.line_no, f.dur); } });
+window.addEventListener('offline', () => setOffline(true));
+
+// ---------- recording ----------
+const MIME = window.MediaRecorder && MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/mp4';
+
+async function getStream() {
+  if (S.stream) return S.stream;
+  if (!navigator.mediaDevices || !window.MediaRecorder) { micMsg('This browser cannot record audio. Use Safari on iPhone or Chrome/Edge on a computer, over https.'); return null; }
+  try { S.stream = await navigator.mediaDevices.getUserMedia({ audio: true }); $('micmsg').hidden = true; return S.stream; }
+  catch (e) {
+    micMsg('Microphone is blocked. iPhone: Settings → Safari → Microphone → Allow, or tap “aA” in the address bar → Website Settings. ' +
+           'Chrome/Edge: click the lock icon next to the address, set Microphone to Allow, then reload.');
+    return null;
+  }
+}
+function micMsg(t) { $('micmsg').textContent = t; $('micmsg').hidden = false; }
+
+async function startRec() {
+  if (S.recording || !S.cur?.order || S.active == null) return;
+  const stream = await getStream(); if (!stream) return;
+  S.chunks = []; S.rec = new MediaRecorder(stream, { mimeType: MIME });
+  const order_no = S.cur.order.order_no, line_no = S.active;
+  S.rec.ondataavailable = e => { if (e.data.size) S.chunks.push(e.data); };
+  S.rec.onstop = () => {
+    const dur = (Date.now() - S.startAt) / 1000;
+    const blob = new Blob(S.chunks, { type: MIME });
+    S.recording = false; S.locked = false; S.stopping = false; clearInterval(S.timer); setTalk();
+    if (dur < 0.5 || blob.size < 100) { render(); return; }   // accidental tap: nothing to save
+    upload(blob, order_no, line_no, dur);
+  };
+  S.rec.start(250); S.startAt = Date.now(); S.recording = true; S.locked = false;
+  S.timer = setInterval(setTalk, 200); setTalk();
+}
+function stopRec() {
+  if (!S.recording || S.stopping) return;
+  S.stopping = true;
+  setTimeout(() => { if (S.rec && S.rec.state !== 'inactive') S.rec.stop(); }, 300);   // keep the last syllable
+}
+function setTalk() {
+  const b = $('talk');
+  if (!S.recording) { b.className = ''; b.innerHTML = 'TALK<small>hold to talk · tap to lock</small>'; return; }
+  const s = Math.floor((Date.now() - S.startAt) / 1000);
+  b.className = 'rec';
+  b.innerHTML = `● ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}<small>${S.locked ? 'tap to stop' : 'let go to save'}</small>`;
+}
+function pressDown() {
+  if (S.recording) { if (S.locked) { S.locked = false; stopRec(); } return; }
+  S.pressAt = Date.now(); startRec();
+}
+function pressUp() {
+  if (!S.recording || S.stopping) return;
+  if (Date.now() - S.pressAt < 300) { S.locked = true; setTalk(); } else stopRec();
+}
+const talk = $('talk');
+talk.addEventListener('pointerdown', e => { e.preventDefault(); talk.setPointerCapture(e.pointerId); pressDown(); });
+talk.addEventListener('pointerup', e => { e.preventDefault(); pressUp(); });
+talk.addEventListener('pointercancel', () => { if (S.recording && !S.locked) stopRec(); });
+talk.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat && !talk.disabled) { e.preventDefault(); pressDown(); } });
+document.addEventListener('keyup', e => { if (e.code === 'Space') { e.preventDefault(); pressUp(); } });
+
+// ---------- buttons ----------
+$('skipline').onclick = () => { if (!S.cur?.order || S.active == null) return; const line_no = S.lastLine = S.active; S.active = null;
+  load('/api/skip-line', postOpts({ rep: slug, order_no: S.cur.order.order_no, line_no })); };
+$('skiporder').onclick = e => { e.preventDefault(); S.active = null; S.cur?.order && load('/api/skip-order', postOpts({ rep: slug, order_no: S.cur.order.order_no })); };
+$('nextorder').onclick = () => { S.active = null; load(`/api/r/${slug}/next`, { method: 'POST' }); };
+$('back').onclick = () => { S.active = null; load(`/api/r/${slug}/prev`, { method: 'POST' }); };
+$('notyou').onclick = () => localStorage.removeItem('rep');
+$('dismiss').onclick = () => { localStorage.setItem('reminderOff', '1'); $('reminder').hidden = true; };
+$('partno').onclick = () => { document.body.classList.toggle('showsku'); localStorage.setItem('showSku', document.body.classList.contains('showsku') ? '1' : ''); };
+function postOpts(body) { return { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }; }
+
+// ---------- wake lock / boot ----------
+async function wake() { try { if (navigator.wakeLock && document.visibilityState === 'visible') await navigator.wakeLock.request('screen'); } catch (e) {} }
+document.addEventListener('visibilitychange', wake);
+
+if (!slug) showPicker();
+else {
+  $('rep').hidden = false;
+  if (localStorage.getItem('reminderOff')) $('reminder').hidden = true;
+  if (localStorage.getItem('showSku')) document.body.classList.add('showsku');
+  if (!navigator.onLine) setOffline(true);
+  load().catch(e => { $('counts').textContent = 'Could not load: ' + e.message; });
+  wake();
+}
+</script>
+</body>
+</html>
