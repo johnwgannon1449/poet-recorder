@@ -38,7 +38,7 @@ def test_current_and_queue(client):
     assert cur["order"]["order_no"] == "SO1001" and cur["order"]["section"] == "own"
     assert cur["counts"]["assigned_orders"] == 1 and cur["counts"]["assigned_lines"] == 2
     assert [l["line_no"] for l in cur["order"]["lines"]] == [1, 2]
-    assert cur["has_prev"] is False
+    assert cur["has_prev"] is False and cur["has_next"] is True
     # Mike's queue: own SO1001 → pool SO1003 → Dave's SO1002
     with db.connect() as c:
         assert db.queue(c, "mike") == [("SO1001", "own"), ("SO1003", "pool"), ("SO1002", "others")]
@@ -115,7 +115,8 @@ def test_skip_order_next_prev(client):
     # everything done or skipped → no order left
     client.post("/api/skip-order", json={"rep": "mike", "order_no": "SO1002"})
     client.post("/api/skip-order", json={"rep": "mike", "order_no": "SO1003"})
-    assert client.get("/api/r/mike/current").json()["order"] is None
+    cur = client.get("/api/r/mike/current").json()
+    assert cur["order"]["order_no"] == "SO1003" and cur["order"]["skipped"] is True and cur["has_next"] is False
 
 
 def test_complete_order_endpoint(client):

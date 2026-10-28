@@ -76,7 +76,8 @@ def api_reps():
 def current_payload(c, slug):
     rep = need_rep(c, slug)
     order_no = db.current_order(c, slug)
-    out = {"rep": rep, "counts": db.rep_counts(c, slug), "order": None, "has_prev": db.has_prev(c, slug)}
+    out = {"rep": rep, "counts": db.rep_counts(c, slug), "order": None, "has_prev": db.has_prev(c, slug),
+           "has_next": db.first_pending(c, slug, exclude={order_no})[0] is not None}
     if order_no:
         takes, skipped = db.takes_for_order(c, slug, order_no), db.skipped_lines(c, slug, order_no)
         lines = db.order_lines(c, order_no)
