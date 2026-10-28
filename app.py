@@ -79,14 +79,14 @@ def current_payload(c, slug):
     out = {"rep": rep, "counts": db.rep_counts(c, slug), "order": None, "has_prev": db.has_prev(c, slug),
            "has_next": db.first_pending(c, slug, exclude={order_no})[0] is not None}
     if order_no:
-        takes, skipped = db.takes_for_order(c, slug, order_no), db.skipped_lines(c, slug, order_no)
+        skipped = db.skipped_lines(c, slug, order_no)
         lines = db.order_lines(c, order_no)
         for l in lines:
-            l["takes"] = takes.get(l["line_no"], [])
             l["skipped"] = l["line_no"] in skipped
+        o = c.execute("SELECT rep, branch, division, cust_type FROM orders WHERE order_no=?", (order_no,)).fetchone()
         out["order"] = {"order_no": order_no, "section": db.section_of(c, slug, order_no), "lines": lines,
-                        "assigned_to": c.execute("SELECT rep FROM orders WHERE order_no=?", (order_no,)).fetchone()[0],
-                        **db.order_state(c, slug, order_no)}
+                        "takes": db.takes_for_order(c, slug, order_no), "assigned_to": o["rep"], "branch": o["branch"],
+                        "division": o["division"], "cust_type": o["cust_type"], **db.order_state(c, slug, order_no)}
     return out
 
 
@@ -114,28 +114,28 @@ def api_prev(slug: str):
 
 @app.post("/api/take")
 def api_take(request: Request, bg: BackgroundTasks, audio: UploadFile = File(...), rep: str = Form(...),
-             order_no: str = Form(...), line_no: int = Form(...), duration_s: float = Form(0.0)):
+             order_no: str = Form(...), duration_s: float = Form(0.0)):
+    """One take = the rep reading the whole order. Lines he X'd at that moment are saved with the take."""
     ext = "m4a" if "mp4" in (audio.content_type or "") or (audio.filename or "").endswith(".m4a") else "webm"
     data = audio.file.read()
     if len(data) < 100:
         raise HTTPException(400, "empty recording")
     with conn() as c:
         need_rep(c, rep)
-        if not c.execute("SELECT 1 FROM order_lines WHERE order_no=? AND line_no=?", (order_no, line_no)).fetchone():
-            raise HTTPException(404, "no such order line")
-        take_no = db.next_take_no(c, rep, order_no, line_no)
+        if not c.execute("SELECT 1 FROM orders WHERE order_no=?", (order_no,)).fetchone():
+            raise HTTPException(404, "no such order")
+        take_no = db.next_take_no(c, rep, order_no)
         folder = db.AUDIO_DIR / db.safe_name(order_no)
         folder.mkdir(parents=True, exist_ok=True)
-        src = folder / f"{line_no}_{rep}_{take_no}.{ext}"
+        src = folder / f"all_{rep}_{take_no}.{ext}"
         src.write_bytes(data)
-        cur = c.execute("INSERT INTO takes (rep, order_no, line_no, take_no, recorded_at, duration_s, src_path, status, user_agent) "
-                        "VALUES (?,?,?,?,?,?,?,'saved',?)",
-                        (rep, order_no, line_no, take_no, db.now(), duration_s, str(src.relative_to(db.DATA_DIR)),
-                         request.headers.get("user-agent", "")[:300]))
+        skipped = ";".join(str(n) for n in sorted(db.skipped_lines(c, rep, order_no)))
+        cur = c.execute("INSERT INTO takes (rep, order_no, line_no, take_no, recorded_at, duration_s, src_path, status, user_agent, skipped_lines) "
+                        "VALUES (?,?,0,?,?,?,?,'saved',?,?)",
+                        (rep, order_no, take_no, db.now(), duration_s, str(src.relative_to(db.DATA_DIR)),
+                         request.headers.get("user-agent", "")[:300], skipped))
         take_id = cur.lastrowid
-        db.log(c, rep, "take", order_no, line_no, take_id, f"{duration_s:.1f}s")
-        if line_no in db.skipped_lines(c, rep, order_no):
-            db.set_line_skipped(c, rep, order_no, line_no, False)   # recording un-skips
+        db.log(c, rep, "take", order_no, None, take_id, f"{duration_s:.1f}s skipped=[{skipped}]")
         db.refresh_order_status(c, rep, order_no)
     bg.add_task(transcode, take_id, src, src.with_suffix(".wav"))
     return {"id": take_id, "take_no": take_no, "duration_s": duration_s}
@@ -182,17 +182,6 @@ async def api_skip_order(request: Request):
         need_rep(c, b["rep"])
         db.skip_order(c, b["rep"], b["order_no"])
         db.next_order(c, b["rep"])
-        return current_payload(c, b["rep"])
-
-
-@app.post("/api/complete-order")
-async def api_complete_order(request: Request):
-    b = await body(request)
-    with conn() as c:
-        need_rep(c, b["rep"])
-        db.refresh_order_status(c, b["rep"], b["order_no"])
-        if not db.is_order_complete(c, b["rep"], b["order_no"]):
-            raise HTTPException(409, "order still has lines without a take or skip")
         return current_payload(c, b["rep"])
 
 

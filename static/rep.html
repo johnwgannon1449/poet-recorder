@@ -13,10 +13,8 @@
   button { font: inherit; border: 0; border-radius: 12px; cursor: pointer; }
   a { color: #1a5fb4; }
   .wrap { max-width: 720px; margin: 0 auto; padding: 0 12px; }
-  /* name picker */
   #pick h1 { font-size: 26px; margin: 28px 0 14px; }
   #reps button { display: block; width: 100%; min-height: 72px; margin: 10px 0; font-size: 24px; font-weight: 600; background: #fff; border: 2px solid #cfd3da; }
-  /* rep page */
   header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #ddd; padding: 10px 12px; z-index: 2; }
   header .name { font-size: 20px; font-weight: 700; }
   header .name a { font-size: 14px; font-weight: 400; margin-left: 8px; }
@@ -25,26 +23,28 @@
   #reminder { background: #fff6d6; border-bottom: 1px solid #f0d98a; }
   #reminder button { margin-left: auto; background: none; font-size: 22px; padding: 0 6px; }
   #banner { background: #e2eefc; border-bottom: 1px solid #b7cdf0; }
-  #offline { background: #fde2e2; border-bottom: 1px solid #f3b4b4; }
-  #micmsg { background: #fde2e2; }
+  #offline, #micmsg { background: #fde2e2; border-bottom: 1px solid #f3b4b4; }
   main { padding: 10px 0 240px; }
-  .orderbar { display: flex; align-items: baseline; gap: 10px; margin: 6px 0; color: #555; font-size: 15px; }
-  .orderbar .no { font-weight: 600; }
+  .orderbar { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 2px; color: #555; font-size: 15px; flex-wrap: wrap; }
+  .orderbar .no { font-weight: 600; color: #111; }
   .orderbar #partno { background: #e7e9ee; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
-  .orderbar #skiporder { margin-left: auto; font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; margin: 4px 0 8px; }
+  .chip { font-size: 14px; background: #e6f4e6; color: #1b5e20; border-radius: 999px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 6px; }
+  .chip.saving { background: #eee; color: #555; }
+  .chip.failed { background: #fde2e2; color: #b00020; }
+  .chip .trash { background: none; padding: 0 2px; font-size: 16px; line-height: 1; color: #777; }
   #lines { list-style: none; margin: 0; padding: 0; }
-  #lines li { background: #fff; border: 2px solid #e1e4ea; border-radius: 12px; padding: 12px 14px; margin: 8px 0; font-size: 22px; line-height: 1.3; }
-  #lines li.active { border-color: #1a5fb4; background: #eef4fd; }
+  #lines li { background: #fff; border: 2px solid #e1e4ea; border-radius: 12px; padding: 10px 8px 10px 14px; margin: 8px 0; font-size: 22px; line-height: 1.3;
+    display: flex; align-items: center; gap: 10px; }
+  #lines li .body { flex: 1; min-width: 0; }
+  #lines li.skipped { background: #f1f2f4; border-color: #e1e4ea; }
   #lines li.skipped .text { color: #999; text-decoration: line-through; }
   #lines li .qty { font-weight: 700; margin-right: 6px; }
   #lines li .sku { display: none; font-size: 14px; color: #777; margin-top: 2px; }
   body.showsku #lines li .sku { display: block; }
-  .chips { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
-  .chip { font-size: 14px; background: #e6f4e6; color: #1b5e20; border-radius: 999px; padding: 3px 10px; display: inline-flex; align-items: center; gap: 6px; }
-  .chip.saving { background: #eee; color: #555; }
-  .chip.failed { background: #fde2e2; color: #b00020; }
-  .chip.skip { background: #eee; color: #777; }
-  .chip .trash { background: none; padding: 0 2px; font-size: 16px; line-height: 1; color: #777; }
+  #lines li .x { flex: none; width: 52px; height: 52px; border-radius: 50%; background: #f1f2f4; color: #777; font-size: 24px; font-weight: 700; }
+  #lines li.skipped .x { background: #d32f2f; color: #fff; }
+  .hint { color: #777; font-size: 13px; margin: 0 0 4px; }
   #done { display: flex; gap: 10px; margin: 14px 0; }
   #done button { flex: 1; min-height: 56px; font-size: 18px; font-weight: 700; background: #fff; border: 2px solid #cfd3da; }
   #done #nextorder { background: #1a5fb4; color: #fff; border-color: #1a5fb4; flex: 2; }
@@ -52,7 +52,7 @@
   footer { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid #ddd;
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); z-index: 2; }
   footer .row { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
-  #skipline { width: 110px; min-height: 84px; font-size: 14px; font-weight: 700; background: #e7e9ee; color: #333; }
+  #skiporderbtn { width: 110px; min-height: 84px; font-size: 14px; font-weight: 700; background: #e7e9ee; color: #333; }
   #talk { flex: 1; min-height: 84px; font-size: 28px; font-weight: 800; letter-spacing: 1px; background: #1a5fb4; color: #fff;
     touch-action: none; -webkit-user-select: none; user-select: none; }
   #talk small { display: block; font-size: 13px; font-weight: 400; letter-spacing: 0; opacity: .85; }
@@ -68,27 +68,28 @@
 
 <div id="rep" hidden>
   <header><div class="name"><span id="repname"></span><a id="notyou" href="/">not you?</a></div><div class="counts" id="counts"></div></header>
-  <div id="reminder" class="note"><span>Say it the way the customer asks for it.</span><button id="dismiss" aria-label="dismiss">×</button></div>
+  <div id="reminder" class="note"><span>Read the whole order the way the customer would ask for it. Tap <b>X</b> on anything you don't know.</span><button id="dismiss" aria-label="dismiss">×</button></div>
   <div id="banner" class="note" hidden></div>
   <div id="offline" class="note" hidden>Offline. Your last take is kept and will be sent when the connection is back.</div>
   <div id="micmsg" class="note" hidden></div>
   <main class="wrap">
-    <div class="orderbar"><span>Order</span><span class="no" id="orderno"></span><button id="partno">part #</button><a id="skiporder" href="#">skip order</a></div>
+    <div class="orderbar"><span>Order</span><span class="no" id="orderno"></span><span id="ordermeta"></span><button id="partno">part #</button></div>
+    <div class="chips" id="chips"></div>
     <ol id="lines"></ol>
     <div id="empty" hidden>Nothing left in your queue. Nice work.</div>
-    <div id="done"><button id="back" hidden>BACK</button><button id="nextorder" hidden>NEXT ORDER ›</button></div>
+    <div id="done"><button id="back" hidden>‹ BACK</button><button id="nextorder" hidden>NEXT ORDER ›</button></div>
   </main>
   <footer><div class="row">
-    <button id="skipline">SKIP<br>LINE</button>
-    <button id="talk">TALK<small>hold to talk · tap to lock</small></button>
+    <button id="skiporderbtn">SKIP<br>ORDER</button>
+    <button id="talk">TALK<small>tap to start · tap to stop</small></button>
   </div></footer>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 const slug = (location.pathname.match(/^\/r\/([^/]+)/) || [])[1];
-const S = { cur: null, active: null, stream: null, rec: null, chunks: [], recording: false, locked: false,
-            pressAt: 0, startAt: 0, timer: null, saving: null, failed: null, stopping: false, lastLine: null, lastOrder: null };
+const S = { cur: null, stream: null, rec: null, chunks: [], recording: false, locked: false, pressAt: 0, startAt: 0,
+            timer: null, saving: null, failed: null, stopping: false, starting: false, releasedEarly: false };
 
 // ---------- name picker ----------
 async function showPicker() {
@@ -106,53 +107,43 @@ async function showPicker() {
 
 // ---------- rendering ----------
 function fmt(sec) { sec = Math.round(sec); return (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's'; }
-function qty(n) { return Number.isInteger(n) ? n : (+n).toFixed(2).replace(/\.?0+$/, ''); }
-
-function pickActive(order) {
-  if (S.active != null && order.lines.some(l => l.line_no === S.active)) return S.active;   // rep tapped a line
-  const free = order.lines.filter(l => !l.takes.length && !l.skipped);
-  const after = free.find(l => order.lines.indexOf(l) > order.lines.findIndex(x => x.line_no === S.lastLine));
-  return (after || free[0] || order.lines[0] || {}).line_no ?? null;
-}
+function qty(n) { return n == null ? '' : (Number.isInteger(n) ? n : (+n).toFixed(2).replace(/\.?0+$/, '')); }
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
 
 function render() {
   const c = S.cur, o = c.order, k = c.counts;
   $('repname').textContent = c.rep.name;
-  $('counts').textContent = `Orders ${k.orders_done} of ${k.assigned_orders} · Lines ${k.lines_recorded} · Skipped ${k.lines_skipped}`;
-  $('empty').hidden = !!o; $('lines').innerHTML = '';
-  $('talk').disabled = !o; $('skipline').disabled = !o;
-  $('back').hidden = !c.has_prev; $('nextorder').hidden = true; $('skiporder').hidden = !o;
-  let banner = '';
-  if (!o) { $('orderno').textContent = '—'; $('banner').hidden = true; return; }
-  if (S.lastOrder !== o.order_no) { S.lastLine = null; S.lastOrder = o.order_no; }
-  S.active = pickActive(o);
+  $('counts').textContent = `Orders ${k.orders_done} of ${k.assigned_orders} · Lines ${k.lines_recorded} · Don't know ${k.lines_skipped}`;
+  $('empty').hidden = !!o; $('lines').innerHTML = ''; $('chips').innerHTML = '';
+  $('talk').disabled = !o; $('skiporderbtn').disabled = !o;
+  $('back').hidden = !c.has_prev; $('nextorder').hidden = true;
+  if (!o) { $('orderno').textContent = '—'; $('ordermeta').textContent = ''; $('banner').hidden = true; return; }
   $('orderno').textContent = o.order_no;
+  $('ordermeta').textContent = [o.branch && 'Br ' + o.branch, o.division, o.cust_type].filter(Boolean).join(' · ');
+  let banner = '';
   if (o.section === 'pool') banner = 'Your own orders are done. This one is from the unassigned pool.';
   if (o.section === 'others') banner = `Your own orders are done. This one is assigned to ${o.assigned_to}; a second voice still helps.`;
-  if ((o.completed || o.skipped) && !c.has_next) banner = 'All caught up. You can still add takes to this order.';
-  else if (o.skipped) banner = 'You skipped this order. Recording a take still counts.';
+  if ((o.completed || o.skipped) && !c.has_next) banner = 'All caught up. You can still record this order again.';
+  else if (o.skipped) banner = 'You skipped this order. Recording it still counts.';
   $('banner').textContent = banner; $('banner').hidden = !banner;
+  for (const t of o.takes) {
+    const ch = document.createElement('span'); ch.className = 'chip';
+    ch.innerHTML = `✓ recorded ${fmt(t.duration_s)} <button class="trash" title="delete take">🗑</button>`;
+    ch.querySelector('.trash').onclick = () => deleteTake(t.id);
+    $('chips').appendChild(ch);
+  }
+  if (S.saving) $('chips').insertAdjacentHTML('beforeend', `<span class="chip saving">${fmt(S.saving.dur)} saving…</span>`);
+  if (S.failed && S.failed.order_no === o.order_no) $('chips').insertAdjacentHTML('beforeend', '<span class="chip failed">not saved — record again</span>');
   for (const l of o.lines) {
     const li = document.createElement('li');
-    li.className = (l.line_no === S.active ? 'active ' : '') + (l.skipped ? 'skipped' : '');
-    li.innerHTML = `<div class="text"><span class="qty">${qty(l.qty)}${l.uom ? ' ' + l.uom : ''}</span> — ${esc(l.description)}</div>
-                    <div class="sku">part # ${esc(l.sku)}</div><div class="chips"></div>`;
-    const chips = li.querySelector('.chips');
-    for (const t of l.takes) {
-      const ch = document.createElement('span'); ch.className = 'chip';
-      ch.innerHTML = `✓ ${fmt(t.duration_s)} <button class="trash" title="delete take">🗑</button>`;
-      ch.querySelector('.trash').onclick = e => { e.stopPropagation(); deleteTake(t.id); };
-      chips.appendChild(ch);
-    }
-    if (S.saving && S.saving.line_no === l.line_no) chips.insertAdjacentHTML('beforeend', `<span class="chip saving">${fmt(S.saving.dur)} saving…</span>`);
-    if (S.failed && S.failed.line_no === l.line_no && S.failed.order_no === o.order_no) chips.insertAdjacentHTML('beforeend', '<span class="chip failed">not saved — hold again</span>');
-    if (l.skipped) chips.insertAdjacentHTML('beforeend', '<span class="chip skip">skipped</span>');
-    li.onclick = () => { S.active = l.line_no; render(); };
+    li.className = l.skipped ? 'skipped' : '';
+    li.innerHTML = `<div class="body"><div class="text"><span class="qty">${qty(l.qty)}${l.qty != null && l.uom ? ' ' + l.uom : ''}</span>${esc(l.description)}</div>
+                    <div class="sku">part # ${esc(l.sku)}</div></div><button class="x" title="${l.skipped ? 'put it back' : "don't know this one"}">${l.skipped ? '↩' : '✕'}</button>`;
+    li.querySelector('.x').onclick = () => toggleLine(l);
     $('lines').appendChild(li);
   }
   $('nextorder').hidden = !(o.completed && c.has_next);
 }
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch])); }
 
 // ---------- server ----------
 async function api(path, opts) {
@@ -163,23 +154,31 @@ async function api(path, opts) {
     return await r.json();
   } catch (e) { if (!navigator.onLine || /Failed to fetch|Load failed/.test(e.message)) setOffline(true); throw e; }
 }
+function postOpts(body) { return { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }; }
 async function load(path = `/api/r/${slug}/current`, opts) { S.cur = await api(path, opts); render(); }
 function setOffline(off) { $('offline').hidden = !off; }
-
 async function deleteTake(id) { await api('/api/take/' + id, { method: 'DELETE' }); await load(); }
+function toggleLine(l) {
+  load(l.skipped ? '/api/unskip-line' : '/api/skip-line', postOpts({ rep: slug, order_no: S.cur.order.order_no, line_no: l.line_no }));
+}
 
-async function upload(blob, order_no, line_no, dur) {
+async function upload(blob, order_no, dur) {
   const fd = new FormData();
   fd.append('audio', blob, 'take.' + (blob.type.includes('mp4') ? 'm4a' : 'webm'));
-  fd.append('rep', slug); fd.append('order_no', order_no); fd.append('line_no', line_no); fd.append('duration_s', dur.toFixed(2));
-  S.saving = { line_no, dur }; render();
+  fd.append('rep', slug); fd.append('order_no', order_no); fd.append('duration_s', dur.toFixed(2));
+  S.saving = { dur }; render();
   for (let i = 0; i < 3; i++) {
-    try { await api('/api/take', { method: 'POST', body: fd }); S.saving = null; S.failed = null; S.lastLine = line_no; S.active = null; await load(); return; }
-    catch (e) { await new Promise(r => setTimeout(r, 800 * (i + 1))); }
+    try {
+      await api('/api/take', { method: 'POST', body: fd });
+      S.saving = null; S.failed = null;
+      await load();                                   // shows the chip; then straight on to the next order
+      if (S.cur.order && S.cur.order.order_no === order_no && S.cur.has_next) await load(`/api/r/${slug}/next`, { method: 'POST' });
+      return;
+    } catch (e) { await new Promise(r => setTimeout(r, 800 * (i + 1))); }
   }
-  S.saving = null; S.failed = { blob, order_no, line_no, dur }; render();
+  S.saving = null; S.failed = { blob, order_no, dur }; render();
 }
-window.addEventListener('online', () => { setOffline(false); if (S.failed) { const f = S.failed; upload(f.blob, f.order_no, f.line_no, f.dur); } });
+window.addEventListener('online', () => { setOffline(false); if (S.failed) { const f = S.failed; upload(f.blob, f.order_no, f.dur); } });
 window.addEventListener('offline', () => setOffline(true));
 
 // ---------- recording ----------
@@ -198,19 +197,22 @@ async function getStream() {
 function micMsg(t) { $('micmsg').textContent = t; $('micmsg').hidden = false; }
 
 async function startRec() {
-  if (S.recording || !S.cur?.order || S.active == null) return;
-  const stream = await getStream(); if (!stream) return;
+  if (S.recording || S.starting || !S.cur?.order) return;
+  S.starting = true; S.releasedEarly = false;
+  const stream = await getStream();
+  S.starting = false;
+  if (!stream) return;
   S.chunks = []; S.rec = new MediaRecorder(stream, { mimeType: MIME });
-  const order_no = S.cur.order.order_no, line_no = S.active;
+  const order_no = S.cur.order.order_no;
   S.rec.ondataavailable = e => { if (e.data.size) S.chunks.push(e.data); };
   S.rec.onstop = () => {
     const dur = (Date.now() - S.startAt) / 1000;
     const blob = new Blob(S.chunks, { type: MIME });
     S.recording = false; S.locked = false; S.stopping = false; clearInterval(S.timer); setTalk();
     if (dur < 0.5 || blob.size < 100) { render(); return; }   // accidental tap: nothing to save
-    upload(blob, order_no, line_no, dur);
+    upload(blob, order_no, dur);
   };
-  S.rec.start(250); S.startAt = Date.now(); S.recording = true; S.locked = false;
+  S.rec.start(250); S.startAt = Date.now(); S.recording = true; S.locked = S.releasedEarly;   // finger already up → behave like a tap
   S.timer = setInterval(setTalk, 200); setTalk();
 }
 function stopRec() {
@@ -220,16 +222,18 @@ function stopRec() {
 }
 function setTalk() {
   const b = $('talk');
-  if (!S.recording) { b.className = ''; b.innerHTML = 'TALK<small>hold to talk · tap to lock</small>'; return; }
+  if (!S.recording) { b.className = ''; b.innerHTML = 'TALK<small>tap to start · tap to stop</small>'; return; }
   const s = Math.floor((Date.now() - S.startAt) / 1000);
   b.className = 'rec';
   b.innerHTML = `● ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}<small>${S.locked ? 'tap to stop' : 'let go to save'}</small>`;
 }
+// Tap starts and locks; tap again stops. Holding also works: let go to save.
 function pressDown() {
   if (S.recording) { if (S.locked) { S.locked = false; stopRec(); } return; }
   S.pressAt = Date.now(); startRec();
 }
 function pressUp() {
+  if (S.starting) { S.releasedEarly = true; return; }
   if (!S.recording || S.stopping) return;
   if (Date.now() - S.pressAt < 300) { S.locked = true; setTalk(); } else stopRec();
 }
@@ -242,15 +246,13 @@ document.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat 
 document.addEventListener('keyup', e => { if (e.code === 'Space') { e.preventDefault(); pressUp(); } });
 
 // ---------- buttons ----------
-$('skipline').onclick = () => { if (!S.cur?.order || S.active == null) return; const line_no = S.lastLine = S.active; S.active = null;
-  load('/api/skip-line', postOpts({ rep: slug, order_no: S.cur.order.order_no, line_no })); };
-$('skiporder').onclick = e => { e.preventDefault(); S.active = null; S.cur?.order && load('/api/skip-order', postOpts({ rep: slug, order_no: S.cur.order.order_no })); };
-$('nextorder').onclick = () => { S.active = null; load(`/api/r/${slug}/next`, { method: 'POST' }); };
-$('back').onclick = () => { S.active = null; load(`/api/r/${slug}/prev`, { method: 'POST' }); };
+function skipOrder() { if (S.cur?.order) load('/api/skip-order', postOpts({ rep: slug, order_no: S.cur.order.order_no })); }
+$('skiporderbtn').onclick = skipOrder;
+$('nextorder').onclick = () => load(`/api/r/${slug}/next`, { method: 'POST' });
+$('back').onclick = () => load(`/api/r/${slug}/prev`, { method: 'POST' });
 $('notyou').onclick = () => localStorage.removeItem('rep');
 $('dismiss').onclick = () => { localStorage.setItem('reminderOff', '1'); $('reminder').hidden = true; };
 $('partno').onclick = () => { document.body.classList.toggle('showsku'); localStorage.setItem('showSku', document.body.classList.contains('showsku') ? '1' : ''); };
-function postOpts(body) { return { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }; }
 
 // ---------- wake lock / boot ----------
 async function wake() { try { if (navigator.wakeLock && document.visibilityState === 'visible') await navigator.wakeLock.request('screen'); } catch (e) {} }

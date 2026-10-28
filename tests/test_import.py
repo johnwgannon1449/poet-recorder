@@ -54,3 +54,43 @@ def test_missing_header_fails(data_dir, tmp_path):
 def test_slugify():
     assert db.slugify("  Mike O'Brien ") == "mike-o-brien"
     assert db.safe_name("SO/10 01") == "SO_10_01"
+
+
+MIS_CSV = '''"Date","Invoice Number","Line#","Code (Consolidated Customer)","Name (Consolidated Customer)","Ship Branch","Type (Price Code)","Size (Price Code)","Name (Customer Region)","Code (Product)","Name (Product)","Selling Unit (Product)","Name (Division)","Order Date","Ext Selling Price"
+"10/1/2026",0100000001,1,"00000-00","FAKE CUSTOMER LLC",1,"Plumbing","Medium","NORTH BAY","FAPPT","3/4 X 10' 26GA PLUMBERS TAPE","RL","PLUMBING","9/16/2026",2.2
+"10/1/2026",0100000001,4,"00000-00","FAKE CUSTOMER LLC",1,"Plumbing","Medium","NORTH BAY","UPNPT12","Q4755050 EP 1/2 PEX TEE","EA","PLUMBING","9/16/2026",44.5
+'''
+
+
+def test_import_mis_export_aliases(data_dir, tmp_path):
+    p = tmp_path / "Export.csv"
+    p.write_text(MIS_CSV, encoding="utf-8-sig")
+    conn, n = import_orders.import_file(p)
+    assert n == 2
+    o = conn.execute("SELECT * FROM orders WHERE order_no='0100000001'").fetchone()
+    assert (o["branch"], o["division"], o["cust_type"], o["cust_size"], o["region"], o["order_date"]) == ("1", "PLUMBING", "Plumbing", "Medium", "NORTH BAY", "9/16/2026")
+    lines = db.order_lines(conn, "0100000001")
+    assert [(l["line_no"], l["qty"], l["uom"], l["sku"]) for l in lines] == [(1, None, "RL", "FAPPT"), (4, None, "EA", "UPNPT12")]
+    assert "FAKE CUSTOMER" not in open(db.DB_PATH, "rb").read().decode("latin1")
+    assert "00000-00" not in open(db.DB_PATH, "rb").read().decode("latin1")
+
+
+def test_assign_reps(data_dir, tmp_path):
+    import assign_reps
+    rows = ['order_no,line_no,sku,description,division']
+    for o in range(30):
+        for l in range(1, 4):
+            rows.append(f"O{o},{l},SKU{l},DESC {l},{'FIRE PROTECTION' if o % 3 == 0 else 'PLUMBING'}")
+    src = tmp_path / "exp.csv"
+    src.write_text("\n".join(rows) + "\n")
+    orders = assign_reps.load_orders(src)
+    chosen = assign_reps.pick(orders, ["Eric", "John"], 5, {"Eric": ["fire"]}, 2, 15, seed=1)
+    assert sum(1 for r in chosen.values() if r == "Eric") == 5 and sum(1 for r in chosen.values() if r == "John") == 5
+    assert all(orders[o][0]["division"] == "FIRE PROTECTION" for o, r in chosen.items() if r == "Eric")
+    out = tmp_path / "batch.xlsx"
+    assign_reps.write_xlsx(out, orders, chosen)
+    conn, n = import_orders.import_file(out)
+    assert n == 30 and sorted(r["slug"] for r in db.reps(conn)) == ["eric", "john"]
+    # a second batch never re-picks orders already in the database
+    chosen2 = assign_reps.pick(orders, ["John"], 5, {}, 2, 15, seed=2)
+    assert not set(chosen2) & set(chosen)

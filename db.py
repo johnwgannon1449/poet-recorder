@@ -11,13 +11,14 @@ AUDIO_DIR = DATA_DIR / "audio"
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS reps (slug TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TEXT);
-CREATE TABLE IF NOT EXISTS orders (order_no TEXT PRIMARY KEY, rep TEXT, seq INTEGER);
+CREATE TABLE IF NOT EXISTS orders (order_no TEXT PRIMARY KEY, rep TEXT, seq INTEGER, branch TEXT, division TEXT,
+  cust_type TEXT, cust_size TEXT, region TEXT, order_date TEXT);
 CREATE TABLE IF NOT EXISTS order_lines (
   order_no TEXT, line_no INTEGER, qty REAL, uom TEXT, sku TEXT, description TEXT, seq INTEGER,
   PRIMARY KEY (order_no, line_no));
 CREATE TABLE IF NOT EXISTS takes (
   id INTEGER PRIMARY KEY AUTOINCREMENT, rep TEXT, order_no TEXT, line_no INTEGER, take_no INTEGER,
-  recorded_at TEXT, duration_s REAL, src_path TEXT, wav_path TEXT, status TEXT DEFAULT 'saved', user_agent TEXT);
+  recorded_at TEXT, duration_s REAL, src_path TEXT, wav_path TEXT, status TEXT DEFAULT 'saved', user_agent TEXT, skipped_lines TEXT);
 CREATE INDEX IF NOT EXISTS takes_line ON takes (order_no, line_no, rep, status);
 CREATE TABLE IF NOT EXISTS line_status (rep TEXT, order_no TEXT, line_no INTEGER, skipped INTEGER DEFAULT 0,
   PRIMARY KEY (rep, order_no, line_no));
@@ -44,6 +45,9 @@ def connect():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(SCHEMA)
+    for table, col in [("orders", c) for c in ("branch", "division", "cust_type", "cust_size", "region", "order_date")] + [("takes", "skipped_lines")]:
+        if col not in [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]:   # upgrade an older data folder
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
     return conn
 
 
@@ -84,10 +88,15 @@ def rep(conn, slug):
     return dict(r) if r else None
 
 
-def upsert_line(conn, order_no, line_no, qty, sku, description, uom, rep_slug, seq):
-    conn.execute("""INSERT INTO orders (order_no, rep, seq) VALUES (?,?,?)
-                    ON CONFLICT(order_no) DO UPDATE SET rep=excluded.rep, seq=MIN(orders.seq, excluded.seq)""",
-                 (order_no, rep_slug, seq))
+ORDER_META = ("branch", "division", "cust_type", "cust_size", "region", "order_date")
+
+
+def upsert_line(conn, order_no, line_no, qty, sku, description, uom, rep_slug, seq, meta=None):
+    meta = meta or {}
+    conn.execute(f"""INSERT INTO orders (order_no, rep, seq, {", ".join(ORDER_META)}) VALUES (?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(order_no) DO UPDATE SET rep=excluded.rep, seq=MIN(orders.seq, excluded.seq),
+                    {", ".join(f"{m}=COALESCE(excluded.{m}, orders.{m})" for m in ORDER_META)}""",
+                 (order_no, rep_slug, seq, *[meta.get(m) or None for m in ORDER_META]))
     conn.execute("""INSERT INTO order_lines (order_no, line_no, qty, uom, sku, description, seq) VALUES (?,?,?,?,?,?,?)
                     ON CONFLICT(order_no, line_no) DO UPDATE SET qty=excluded.qty, uom=excluded.uom, sku=excluded.sku,
                     description=excluded.description, seq=excluded.seq""",
@@ -102,14 +111,9 @@ def order_lines(conn, order_no):
 # ---------- per-rep state ----------
 
 def is_order_complete(conn, slug, order_no):
-    """Every line has a saved take by this rep or is skipped by this rep."""
-    n_lines = conn.execute("SELECT COUNT(*) FROM order_lines WHERE order_no=?", (order_no,)).fetchone()[0]
-    missing = conn.execute("""
-        SELECT COUNT(*) FROM order_lines l WHERE l.order_no=?
-          AND NOT EXISTS (SELECT 1 FROM takes t WHERE t.rep=? AND t.order_no=l.order_no AND t.line_no=l.line_no AND t.status='saved')
-          AND NOT EXISTS (SELECT 1 FROM line_status s WHERE s.rep=? AND s.order_no=l.order_no AND s.line_no=l.line_no AND s.skipped=1)
-    """, (order_no, slug, slug)).fetchone()[0]
-    return n_lines > 0 and missing == 0
+    """The rep has read this order at least once (a saved whole-order take)."""
+    return conn.execute("SELECT COUNT(*) FROM takes WHERE rep=? AND order_no=? AND line_no=0 AND status='saved'",
+                        (slug, order_no)).fetchone()[0] > 0
 
 
 def refresh_order_status(conn, slug, order_no):
@@ -206,7 +210,6 @@ def set_line_skipped(conn, slug, order_no, line_no, skipped):
                  "ON CONFLICT(rep, order_no, line_no) DO UPDATE SET skipped=excluded.skipped",
                  (slug, order_no, line_no, 1 if skipped else 0))
     log(conn, slug, "line_skip" if skipped else "line_unskip", order_no, line_no)
-    refresh_order_status(conn, slug, order_no)
 
 
 def skip_order(conn, slug, order_no):
@@ -215,18 +218,15 @@ def skip_order(conn, slug, order_no):
     log(conn, slug, "order_skip", order_no)
 
 
-def next_take_no(conn, slug, order_no, line_no):
+def next_take_no(conn, slug, order_no, line_no=0):
     r = conn.execute("SELECT COALESCE(MAX(take_no),0) FROM takes WHERE rep=? AND order_no=? AND line_no=?",
                      (slug, order_no, line_no)).fetchone()
     return r[0] + 1
 
 
 def takes_for_order(conn, slug, order_no):
-    out = {}
-    for r in conn.execute("SELECT id, line_no, take_no, duration_s, recorded_at, wav_path FROM takes "
-                          "WHERE rep=? AND order_no=? AND status='saved' ORDER BY take_no", (slug, order_no)):
-        out.setdefault(r["line_no"], []).append(dict(r))
-    return out
+    return [dict(r) for r in conn.execute("SELECT id, take_no, duration_s, recorded_at, skipped_lines FROM takes "
+                                          "WHERE rep=? AND order_no=? AND line_no=0 AND status='saved' ORDER BY take_no", (slug, order_no))]
 
 
 def skipped_lines(conn, slug, order_no):
@@ -235,6 +235,10 @@ def skipped_lines(conn, slug, order_no):
 
 # ---------- counts ----------
 
+RECORDED_LINES = """FROM order_lines l WHERE EXISTS (SELECT 1 FROM takes t WHERE t.rep=? AND t.order_no=l.order_no AND t.line_no=0 AND t.status='saved')
+    AND NOT EXISTS (SELECT 1 FROM line_status s WHERE s.rep=? AND s.order_no=l.order_no AND s.line_no=l.line_no AND s.skipped=1)"""
+
+
 def rep_counts(conn, slug):
     q = lambda sql, *a: conn.execute(sql, a).fetchone()[0]
     c = {
@@ -242,18 +246,16 @@ def rep_counts(conn, slug):
         "orders_done": q("SELECT COUNT(*) FROM order_status WHERE rep=? AND completed_at IS NOT NULL", slug),
         "orders_skipped": q("SELECT COUNT(*) FROM order_status WHERE rep=? AND skipped=1 AND completed_at IS NULL", slug),
         "assigned_lines": q("SELECT COUNT(*) FROM order_lines l JOIN orders o USING (order_no) WHERE o.rep=?", slug),
-        "lines_recorded": q("SELECT COUNT(DISTINCT order_no || '/' || line_no) FROM takes WHERE rep=? AND status='saved'", slug),
-        "lines_skipped": q("SELECT COUNT(*) FROM line_status s WHERE s.rep=? AND s.skipped=1 AND NOT EXISTS "
-                           "(SELECT 1 FROM takes t WHERE t.rep=s.rep AND t.order_no=s.order_no AND t.line_no=s.line_no AND t.status='saved')", slug),
+        "lines_recorded": q("SELECT COUNT(*) " + RECORDED_LINES, slug, slug),
+        "lines_skipped": q("SELECT COUNT(*) FROM line_status WHERE rep=? AND skipped=1", slug),
         "takes": q("SELECT COUNT(*) FROM takes WHERE rep=? AND status='saved'", slug),
         "minutes": round((q("SELECT COALESCE(SUM(duration_s),0) FROM takes WHERE rep=? AND status='saved'", slug)) / 60, 1),
         "last_activity": q("SELECT MAX(ts) FROM events WHERE rep=? AND kind IN ('take','take_delete','line_skip','order_skip')", slug),
     }
     c["remaining_orders"] = q("""SELECT COUNT(*) FROM orders o WHERE o.rep=? AND NOT EXISTS
         (SELECT 1 FROM order_status s WHERE s.rep=o.rep AND s.order_no=o.order_no AND (s.completed_at IS NOT NULL OR s.skipped=1))""", slug)
-    c["remaining_lines"] = q("""SELECT COUNT(*) FROM order_lines l JOIN orders o USING (order_no) WHERE o.rep=?
-        AND NOT EXISTS (SELECT 1 FROM takes t WHERE t.rep=o.rep AND t.order_no=l.order_no AND t.line_no=l.line_no AND t.status='saved')
-        AND NOT EXISTS (SELECT 1 FROM line_status s WHERE s.rep=o.rep AND s.order_no=l.order_no AND s.line_no=l.line_no AND s.skipped=1)""", slug)
+    c["remaining_lines"] = q("""SELECT COUNT(*) FROM order_lines l JOIN orders o USING (order_no) WHERE o.rep=? AND NOT EXISTS
+        (SELECT 1 FROM order_status s WHERE s.rep=o.rep AND s.order_no=o.order_no AND (s.completed_at IS NOT NULL OR s.skipped=1))""", slug)
     return c
 
 
@@ -261,7 +263,8 @@ def coverage(conn):
     q = lambda sql: conn.execute(sql).fetchone()[0]
     orders_total, lines_total = q("SELECT COUNT(*) FROM orders"), q("SELECT COUNT(*) FROM order_lines")
     orders_done = q("SELECT COUNT(DISTINCT order_no) FROM order_status WHERE completed_at IS NOT NULL")
-    lines_done = q("SELECT COUNT(DISTINCT order_no || '/' || line_no) FROM takes WHERE status='saved'")
+    lines_done = q("""SELECT COUNT(*) FROM order_lines l WHERE EXISTS (SELECT 1 FROM takes t WHERE t.order_no=l.order_no AND t.line_no=0
+        AND t.status='saved' AND NOT EXISTS (SELECT 1 FROM line_status s WHERE s.rep=t.rep AND s.order_no=l.order_no AND s.line_no=l.line_no AND s.skipped=1))""")
     pct = lambda a, b: round(100 * a / b, 1) if b else 0
     return {"orders_total": orders_total, "orders_done": orders_done, "orders_pct": pct(orders_done, orders_total),
             "lines_total": lines_total, "lines_done": lines_done, "lines_pct": pct(lines_done, lines_total)}
