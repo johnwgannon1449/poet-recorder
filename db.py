@@ -158,11 +158,16 @@ def section_of(conn, slug, order_no):
     return "own"
 
 
+def nav_tail(conn, slug):
+    r = conn.execute("SELECT order_no FROM nav WHERE rep=? ORDER BY id DESC LIMIT 1", (slug,)).fetchone()
+    return r["order_no"] if r else None
+
+
 def current_order(conn, slug):
     """The order this rep is looking at (tail of nav), opening the first pending one if nothing is open."""
-    r = conn.execute("SELECT order_no FROM nav WHERE rep=? ORDER BY id DESC LIMIT 1", (slug,)).fetchone()
-    if r:
-        return r["order_no"]
+    order_no = nav_tail(conn, slug)
+    if order_no:
+        return order_no
     order_no, _ = first_pending(conn, slug)
     if order_no:
         open_order(conn, slug, order_no)
@@ -175,8 +180,10 @@ def open_order(conn, slug, order_no):
 
 
 def next_order(conn, slug):
-    cur = current_order(conn, slug)
-    order_no, _ = first_pending(conn, slug, exclude={cur} if cur else ())
+    cur = nav_tail(conn, slug)
+    if cur is None:
+        return current_order(conn, slug)
+    order_no, _ = first_pending(conn, slug, exclude={cur})
     if order_no:
         open_order(conn, slug, order_no)
     return order_no
