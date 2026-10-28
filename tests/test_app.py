@@ -141,7 +141,7 @@ def test_progress(client):
     p = client.get("/api/progress").json()
     mike = next(r for r in p["reps"] if r["slug"] == "mike")
     assert mike["orders_done"] == 1 and mike["minutes"] == 1.0 and mike["last_activity"]
-    assert p["total"]["assigned_orders"] == 3 and p["total"]["assigned_lines"] == 5 and p["total"]["takes"] == 2
+    assert p["total"]["assigned_orders"] == 2 and p["total"]["assigned_lines"] == 3 and p["total"]["takes"] == 2
     assert p["coverage"] == {"orders_total": 3, "orders_done": 1, "orders_pct": 33.3, "lines_total": 5, "lines_done": 2, "lines_pct": 40.0}
     csv_text = client.get("/progress.csv").text
     assert csv_text.startswith("rep,assigned_orders") and "TOTAL" in csv_text

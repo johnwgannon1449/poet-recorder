@@ -1,1 +1,73 @@
-<!doctype html><title>Progress</title>placeholder
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>POET Recorder — Progress</title>
+<style>
+  body { margin: 0; padding: 16px; background: #f4f5f7; color: #111; font: 15px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 14px; }
+  .sub a { color: #1a5fb4; margin-left: 10px; }
+  .scroll { overflow-x: auto; background: #fff; border: 1px solid #ddd; border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
+  th { background: #f0f2f5; font-weight: 600; font-size: 12px; color: #444; position: sticky; top: 0; }
+  th:first-child, td:first-child { text-align: left; font-weight: 600; }
+  th.group { text-align: center; border-left: 1px solid #ddd; }
+  td.group { border-left: 1px solid #eee; }
+  tr.total td { font-weight: 700; background: #fafbfc; border-top: 2px solid #ccc; }
+  .cov { margin-top: 18px; display: flex; gap: 14px; flex-wrap: wrap; }
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 10px; padding: 12px 16px; min-width: 220px; flex: 1; }
+  .card .big { font-size: 28px; font-weight: 700; }
+  .card .lbl { color: #666; font-size: 13px; }
+  .bar { height: 8px; background: #e6e8ec; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: #1a5fb4; }
+</style>
+</head>
+<body>
+<h1>POET Counter Recorder — progress</h1>
+<div class="sub">Refreshes every 30 s · <span id="updated"></span><a href="/progress.csv">download CSV</a><a href="/">rep page</a></div>
+<div class="scroll"><table>
+  <thead>
+    <tr><th></th><th class="group" colspan="4">Orders</th><th class="group" colspan="4">Lines</th><th class="group" colspan="3">Activity</th></tr>
+    <tr><th>Rep</th><th class="group">assigned</th><th>done</th><th>skipped</th><th>remaining</th>
+        <th class="group">assigned</th><th>recorded</th><th>skipped</th><th>remaining</th>
+        <th class="group">takes</th><th>minutes</th><th>last activity</th></tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table></div>
+<div class="cov" id="cov"></div>
+<script>
+const COLS = ['assigned_orders', 'orders_done', 'orders_skipped', 'remaining_orders', 'assigned_lines', 'lines_recorded', 'lines_skipped', 'remaining_lines', 'takes', 'minutes', 'last_activity'];
+const GROUP_START = new Set(['assigned_orders', 'assigned_lines', 'takes']);
+function when(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso), m = (Date.now() - d) / 60000;
+  if (m < 1) return 'just now';
+  if (m < 60) return Math.round(m) + ' min ago';
+  if (m < 60 * 24) return Math.round(m / 60) + ' h ago';
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+function row(r, cls) {
+  return `<tr class="${cls}"><td>${r.rep}</td>` + COLS.map(c =>
+    `<td class="${GROUP_START.has(c) ? 'group' : ''}">${c === 'last_activity' ? when(r[c]) : r[c]}</td>`).join('') + '</tr>';
+}
+async function refresh() {
+  try {
+    const p = await (await fetch('/api/progress')).json();
+    document.getElementById('rows').innerHTML = p.reps.map(r => row(r, '')).join('') + row(p.total, 'total');
+    const c = p.coverage;
+    document.getElementById('cov').innerHTML = [
+      ['Orders with at least one completed read', c.orders_done, c.orders_total, c.orders_pct],
+      ['Lines with at least one take', c.lines_done, c.lines_total, c.lines_pct],
+    ].map(([lbl, n, tot, pct]) => `<div class="card"><div class="lbl">${lbl}</div><div class="big">${n} <span class="lbl">of ${tot} · ${pct}%</span></div>
+      <div class="bar"><i style="width:${pct}%"></i></div></div>`).join('');
+    document.getElementById('updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+  } catch (e) { document.getElementById('updated').textContent = 'could not load: ' + e.message; }
+}
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

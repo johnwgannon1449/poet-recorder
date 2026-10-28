@@ -204,8 +204,6 @@ def progress_rows(c):
     for k in PROGRESS_COLS:
         vals = [r[k] for r in rows if r[k] is not None]
         total[k] = max(vals, default=None) if k == "last_activity" else round(sum(vals), 1)
-    total["assigned_orders"] = c.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
-    total["assigned_lines"] = c.execute("SELECT COUNT(*) FROM order_lines").fetchone()[0]
     return rows, total
 
 
