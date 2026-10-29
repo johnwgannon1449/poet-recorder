@@ -38,7 +38,9 @@
   #lines li .body { flex: 1; min-width: 0; }
   #lines li.skipped { background: #f1f2f4; border-color: #e1e4ea; }
   #lines li.skipped .text { color: #999; text-decoration: line-through; }
-  #lines li .qty { font-weight: 700; margin-right: 6px; }
+  #lines li .qty { display: inline-block; font-weight: 800; background: #111; color: #fff; border-radius: 8px; padding: 1px 9px; margin-right: 8px; white-space: nowrap; }
+  #lines li .qty.missing { background: #fde2e2; color: #b00020; font-weight: 600; }
+  #lines li.skipped .qty { opacity: .4; }
   #lines li .sku { font-weight: 700; color: #1a5fb4; margin-right: 8px; white-space: nowrap; }
   #lines li .x { flex: none; width: 52px; height: 52px; border-radius: 50%; background: #f1f2f4; color: #777; font-size: 24px; font-weight: 700; }
   #lines li.skipped .x { background: #d32f2f; color: #fff; }
@@ -135,7 +137,8 @@ function render() {
   for (const l of o.lines) {
     const li = document.createElement('li');
     li.className = l.skipped ? 'skipped' : '';
-    li.innerHTML = `<div class="body"><div class="text"><span class="sku">${esc(l.sku)}</span>— <span class="qty">${qty(l.qty)}${l.qty != null && l.uom ? ' ' + l.uom : ''}</span>${esc(l.description)}</div></div><button class="x" title="${l.skipped ? 'put it back' : "don't know this one"}">${l.skipped ? '↩' : '✕'}</button>`;
+    const q = l.qty == null ? '<span class="qty missing">qty?</span>' : `<span class="qty">${qty(l.qty)}${l.uom ? ' ' + esc(l.uom) : ''}</span>`;
+    li.innerHTML = `<div class="body"><div class="text"><span class="sku">${esc(l.sku)}</span>— ${q}${esc(l.description)}</div></div><button class="x" title="${l.skipped ? 'put it back' : "don't know this one"}">${l.skipped ? '↩' : '✕'}</button>`;
     li.querySelector('.x').onclick = () => toggleLine(l);
     $('lines').appendChild(li);
   }
