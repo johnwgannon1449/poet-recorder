@@ -94,3 +94,32 @@ def test_assign_reps(data_dir, tmp_path):
     # a second batch never re-picks orders already in the database
     chosen2 = assign_reps.pick(orders, ["John"], 5, {}, 2, 15, seed=2)
     assert not set(chosen2) & set(chosen)
+
+
+def test_nonpositive_qty_left_out_and_removed(data_dir, tmp_path):
+    p = tmp_path / "o.csv"
+    p.write_text("order_no,line_no,sku,description,qty\nA,1,X,ONE,2\nA,2,Y,TWO,0\nB,1,Z,RET,-3\n")
+    conn, n = import_orders.import_file(p)
+    assert n == 1 and [r[0] for r in conn.execute("SELECT order_no FROM orders")] == ["A"]
+    assert [l["line_no"] for l in db.order_lines(conn, "A")] == [1]
+    # a line imported earlier (no qty known) disappears once the export says it was a return
+    p.write_text("order_no,line_no,sku,description\nA,1,X,ONE\nA,2,Y,TWO\n")
+    conn, _ = import_orders.import_file(p)
+    assert [l["line_no"] for l in db.order_lines(conn, "A")] == [1, 2]
+    p.write_text("order_no,line_no,sku,description,qty\nA,1,X,ONE,2\nA,2,Y,TWO,-1\n")
+    conn, _ = import_orders.import_file(p)
+    assert [l["line_no"] for l in db.order_lines(conn, "A")] == [1]
+
+
+def test_assign_with_qty_file_and_same_as(data_dir, tmp_path):
+    import assign_reps
+    (tmp_path / "exp.csv").write_text("Invoice Number,Line#,Code (Product),Name (Product),Name (Division)\n"
+                                      "O1,1,S1,D1,PLUMBING\nO1,2,S2,D2,PLUMBING\nO2,1,S3,D3,PLUMBING\nO2,2,S4,D4,PLUMBING\n")
+    (tmp_path / "qty.csv").write_text("Invoice Number,Line#,Code (Product),Quantity Ordered\nO1,1,S1,5\nO1,2,S2,-5\nO2,1,S3,1\nO2,2,S4,3\n")
+    orders = assign_reps.load_orders(tmp_path / "exp.csv", tmp_path / "qty.csv")
+    assert [(l["line_no"], l["qty"]) for l in orders["O1"]] == [("1", "5")] and len(orders["O2"]) == 2
+    assign_reps.write_xlsx(tmp_path / "b1.xlsx", orders, {"O2": "Eric"})
+    chosen = assign_reps.same_as(tmp_path / "b1.xlsx")
+    assert chosen == {"O2": "Eric"}
+    conn, n = import_orders.import_file(tmp_path / "b1.xlsx")
+    assert n == 2 and db.order_lines(conn, "O2")[1]["qty"] == 3.0

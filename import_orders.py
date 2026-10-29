@@ -10,12 +10,12 @@ REQUIRED = ["order_no", "line_no", "sku", "description"]
 OPTIONAL = ["qty", "uom", "rep", "branch", "division", "cust_type", "cust_size", "region", "order_date"]
 # Column names as the MIS counter-sales export spells them → ours. Customer name/account columns are never read.
 ALIASES = {"invoice number": "order_no", "line#": "line_no", "code (product)": "sku", "name (product)": "description",
-           "selling unit (product)": "uom", "quantity": "qty", "qty shipped": "qty", "ship branch": "branch",
+           "selling unit (product)": "uom", "quantity": "qty", "quantity ordered": "qty", "qty shipped": "qty", "ship branch": "branch",
            "name (division)": "division", "type (price code)": "cust_type", "size (price code)": "cust_size",
            "name (customer region)": "region", "order date": "order_date"}
 
 
-def read_rows(path):
+def read_rows(path, required=REQUIRED):
     """Yield dicts keyed by lower-cased header. Unknown columns are dropped (so customer data never gets in)."""
     path = Path(path)
     if path.suffix.lower() in (".xlsx", ".xlsm"):
@@ -29,14 +29,14 @@ def read_rows(path):
         reader = csv.reader(f)
         header = [norm(h) for h in next(reader, [])]
         raw = (dict(zip(header, r)) for r in reader)
-    missing = [h for h in REQUIRED if h not in header]
+    missing = [h for h in required if h not in header]
     if missing:
         sys.exit(f"ERROR: {path.name} is missing required column(s): {', '.join(missing)}\n"
-                 f"Found: {', '.join(h for h in header if h)}\nRequired: {', '.join(REQUIRED)}; optional: {', '.join(OPTIONAL)}")
+                 f"Found: {', '.join(h for h in header if h)}\nRequired: {', '.join(required)}; optional: {', '.join(OPTIONAL)}")
     for r in raw:
         if all(v in (None, "") for v in r.values()):
             continue
-        yield {k: r.get(k) for k in REQUIRED + OPTIONAL}
+        yield {k: r.get(k) for k in dict.fromkeys(required + REQUIRED + OPTIONAL)}
 
 
 def norm(h):
@@ -53,8 +53,9 @@ def text(v):
 
 
 def import_file(path, extra_reps=()):
+    """Returns (conn, lines imported). Lines with qty <= 0 (returns, credits) are left out, and removed if imported earlier."""
     conn = db.connect()
-    n = 0
+    n = dropped = 0
     with conn:
         for name in extra_reps:
             if name.strip():
@@ -67,11 +68,18 @@ def import_file(path, extra_reps=()):
                 line_no, qty = int(float(text(r["line_no"]))), (float(text(r.get("qty"))) if text(r.get("qty")) else None)
             except ValueError:
                 sys.exit(f"ERROR: row {i} (order {order_no}): line_no must be an integer and qty a number")
+            if qty is not None and qty <= 0:
+                dropped += 1
+                conn.execute("DELETE FROM order_lines WHERE order_no=? AND line_no=?", (order_no, line_no))
+                continue
             rep_name = text(r.get("rep"))
             rep_slug = db.upsert_rep(conn, rep_name) if rep_name else None
             meta = {m: text(r.get(m)) for m in db.ORDER_META}
             db.upsert_line(conn, order_no, line_no, qty, sku, desc, text(r.get("uom")), rep_slug, i, meta)
             n += 1
+        conn.execute("DELETE FROM orders WHERE order_no NOT IN (SELECT order_no FROM order_lines)")   # an order with no lines left
+    if dropped:
+        print(f"Left out {dropped} line(s) with zero or negative quantity")
     return conn, n
 
 

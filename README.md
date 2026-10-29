@@ -11,7 +11,7 @@ Needs Python 3.11+ and `ffmpeg` on the PATH (`brew install ffmpeg` on the Mac, `
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python -m pytest -q          # optional: 20 tests, no real ffmpeg needed
+python -m pytest -q          # optional: 22 tests, no real ffmpeg needed
 ```
 
 ## Get orders in: the MIS export → a batch → import
@@ -25,7 +25,7 @@ python -m pytest -q          # optional: 20 tests, no real ffmpeg needed
 | Code (Product) | sku | yes (shown before the description on every line) |
 | Name (Product) | description | yes |
 | Selling Unit (Product) | uom | no |
-| Quantity / Qty Shipped | qty | no (the standard export has none; add it if you want reps to say quantities) |
+| Quantity Ordered | qty | no; the standard export lacks it, so merge the separate quantity export with `--qty` below. Lines with zero or negative quantity (returns, credits) are always left out |
 | Ship Branch, Name (Division), Type (Price Code), Size (Price Code), Name (Customer Region), Order Date | order context | no |
 
 A hand-made sheet with plain headers (`order_no, line_no, sku, description, qty, uom, rep`) works too.
@@ -33,10 +33,13 @@ A hand-made sheet with plain headers (`order_no, line_no, sku, description, qty,
 **2. Pick a batch and assign reps:**
 
 ```bash
-python assign_reps.py Export-20261028.csv --reps "Eric, John" --per-rep 20 --out batch1.xlsx
-python assign_reps.py Export-20261028.csv --reps "Eric, John" --per-rep 20 \
+python assign_reps.py Export-20261028.csv --qty Export-qty.xlsx --reps "Eric, John" --per-rep 20 --out batch1.xlsx
+python assign_reps.py Export-20261028.csv --qty Export-qty.xlsx --reps "Eric, John" --per-rep 20 \
        --focus "Eric=FIRE PROTECTION|WATER WORK; John=HVAC|HYDRONIC" --out batch2.xlsx
+python assign_reps.py Export-20261028.csv --qty Export-qty.xlsx --same-as batch1.xlsx --out batch1.xlsx   # same orders, refreshed lines
 ```
+
+`--qty` is the MIS export with just Invoice Number, Line#, Code (Product), Quantity Ordered. `--same-as` keeps an earlier batch's orders and rep assignments and only refreshes the lines, for when the data changes after a batch went out.
 
 Each rep gets a spread across divisions (or only his `--focus` divisions), 2 to 15 lines per order by default (`--min-lines`, `--max-lines`), and orders already in the database are never picked twice. It prints what each rep got. Open the xlsx and change the `rep` column by hand if you want.
 
