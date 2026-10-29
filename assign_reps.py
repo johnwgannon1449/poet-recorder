@@ -57,7 +57,11 @@ def pick(orders, reps, per_rep, focus, min_lines, max_lines, seed):
         rng.shuffle(v)
     chosen = {}
     for rep in reps:
-        divs = [d for d in by_div if any(f.lower() in d.lower() for f in focus.get(rep, []))] if rep in focus else list(by_div)
+        if rep in focus:   # exact division names first ("PLUMBING" ≠ "FINISH PLUMBING"); fall back to substring
+            wanted = [f.lower() for f in focus[rep]]
+            divs = [d for d in by_div if d.lower() in wanted] or [d for d in by_div if any(f in d.lower() for f in wanted)]
+        else:
+            divs = list(by_div)
         if not divs:
             sys.exit(f"ERROR: no divisions match --focus for {rep}: {focus[rep]}\nDivisions: {sorted(by_div)}")
         weights = [len(by_div[d]) for d in divs]
@@ -89,7 +93,7 @@ if __name__ == "__main__":
     ap.add_argument("--qty", help="MIS quantity export to merge (Invoice Number, Line#, Code (Product), Quantity Ordered)")
     ap.add_argument("--same-as", help="earlier batch .xlsx: keep its orders and rep assignments, just refresh the lines")
     ap.add_argument("--per-rep", type=int, default=20)
-    ap.add_argument("--focus", default="", help='"Eric=FIRE PROTECTION|WATER WORK; John=HVAC"  (substring match on division)')
+    ap.add_argument("--focus", default="", help='"Eric=WATER WORK UTILITIES; John=PLUMBING"  (exact division name, else substring)')
     ap.add_argument("--min-lines", type=int, default=2)
     ap.add_argument("--max-lines", type=int, default=15)
     ap.add_argument("--seed", type=int, default=1)
