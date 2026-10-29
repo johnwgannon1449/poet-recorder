@@ -22,7 +22,7 @@ python -m pytest -q          # optional: 20 tests, no real ffmpeg needed
 |---|---|---|
 | Invoice Number | order_no | yes |
 | Line# | line_no | yes |
-| Code (Product) | sku | yes (hidden from reps by default) |
+| Code (Product) | sku | yes (shown before the description on every line) |
 | Name (Product) | description | yes |
 | Selling Unit (Product) | uom | no |
 | Quantity / Qty Shipped | qty | no (the standard export has none; add it if you want reps to say quantities) |

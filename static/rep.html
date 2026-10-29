@@ -27,7 +27,6 @@
   main { padding: 10px 0 240px; }
   .orderbar { display: flex; align-items: baseline; gap: 10px; margin: 6px 0 2px; color: #555; font-size: 15px; flex-wrap: wrap; }
   .orderbar .no { font-weight: 600; color: #111; }
-  .orderbar #partno { background: #e7e9ee; border-radius: 8px; padding: 2px 8px; font-size: 13px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 28px; margin: 4px 0 8px; }
   .chip { font-size: 14px; background: #e6f4e6; color: #1b5e20; border-radius: 999px; padding: 4px 12px; display: inline-flex; align-items: center; gap: 6px; }
   .chip.saving { background: #eee; color: #555; }
@@ -40,8 +39,7 @@
   #lines li.skipped { background: #f1f2f4; border-color: #e1e4ea; }
   #lines li.skipped .text { color: #999; text-decoration: line-through; }
   #lines li .qty { font-weight: 700; margin-right: 6px; }
-  #lines li .sku { display: none; font-size: 14px; color: #777; margin-top: 2px; }
-  body.showsku #lines li .sku { display: block; }
+  #lines li .sku { font-weight: 700; color: #1a5fb4; margin-right: 8px; white-space: nowrap; }
   #lines li .x { flex: none; width: 52px; height: 52px; border-radius: 50%; background: #f1f2f4; color: #777; font-size: 24px; font-weight: 700; }
   #lines li.skipped .x { background: #d32f2f; color: #fff; }
   .hint { color: #777; font-size: 13px; margin: 0 0 4px; }
@@ -73,7 +71,7 @@
   <div id="offline" class="note" hidden>Offline. Your last take is kept and will be sent when the connection is back.</div>
   <div id="micmsg" class="note" hidden></div>
   <main class="wrap">
-    <div class="orderbar"><span>Order</span><span class="no" id="orderno"></span><span id="ordermeta"></span><button id="partno">part #</button></div>
+    <div class="orderbar"><span>Order</span><span class="no" id="orderno"></span><span id="ordermeta"></span></div>
     <div class="chips" id="chips"></div>
     <ol id="lines"></ol>
     <div id="empty" hidden>Nothing left in your queue. Nice work.</div>
@@ -137,8 +135,7 @@ function render() {
   for (const l of o.lines) {
     const li = document.createElement('li');
     li.className = l.skipped ? 'skipped' : '';
-    li.innerHTML = `<div class="body"><div class="text"><span class="qty">${qty(l.qty)}${l.qty != null && l.uom ? ' ' + l.uom : ''}</span>${esc(l.description)}</div>
-                    <div class="sku">part # ${esc(l.sku)}</div></div><button class="x" title="${l.skipped ? 'put it back' : "don't know this one"}">${l.skipped ? '↩' : '✕'}</button>`;
+    li.innerHTML = `<div class="body"><div class="text"><span class="sku">${esc(l.sku)}</span>— <span class="qty">${qty(l.qty)}${l.qty != null && l.uom ? ' ' + l.uom : ''}</span>${esc(l.description)}</div></div><button class="x" title="${l.skipped ? 'put it back' : "don't know this one"}">${l.skipped ? '↩' : '✕'}</button>`;
     li.querySelector('.x').onclick = () => toggleLine(l);
     $('lines').appendChild(li);
   }
@@ -252,7 +249,6 @@ $('nextorder').onclick = () => load(`/api/r/${slug}/next`, { method: 'POST' });
 $('back').onclick = () => load(`/api/r/${slug}/prev`, { method: 'POST' });
 $('notyou').onclick = () => localStorage.removeItem('rep');
 $('dismiss').onclick = () => { localStorage.setItem('reminderOff', '1'); $('reminder').hidden = true; };
-$('partno').onclick = () => { document.body.classList.toggle('showsku'); localStorage.setItem('showSku', document.body.classList.contains('showsku') ? '1' : ''); };
 
 // ---------- wake lock / boot ----------
 async function wake() { try { if (navigator.wakeLock && document.visibilityState === 'visible') await navigator.wakeLock.request('screen'); } catch (e) {} }
@@ -262,7 +258,6 @@ if (!slug) showPicker();
 else {
   $('rep').hidden = false;
   if (localStorage.getItem('reminderOff')) $('reminder').hidden = true;
-  if (localStorage.getItem('showSku')) document.body.classList.add('showsku');
   if (!navigator.onLine) setOffline(true);
   load().catch(e => { $('counts').textContent = 'Could not load: ' + e.message; });
   wake();
